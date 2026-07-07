@@ -1,0 +1,41 @@
+\documentclass[12pt,titlepage,letterpaper]{article}
+
+\usepackage{iftex}
+\ifXeTeX
+  \usepackage[UTF8,fontset=fandol]{ctex}
+  \usepackage{fontspec}
+  \setmainfont{Latin Modern Roman}
+\else
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\fi
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0pt}
+\setlist[itemize]{itemsep=0.65em}
+
+\title{Paxos Made Simple}
+\author{Leslie Lamport}
+\date{01 Nov 2001}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{sections/00-abstract}
+\end{abstract}
+
+\tableofcontents
+\clearpage
+\setcounter{page}{1}
+
+\input{sections/01-introduction}
+\input{sections/02-consensus-algorithm}
+\input{sections/03-state-machine}
+\input{sections/04-references}
+
+\end{document}
