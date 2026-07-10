@@ -1,3 +1,3 @@
-\section{Introduction}
+\section{引言}
 
-% Translate Section 1 from source/paxos-simple.pdf here.
+用于实现容错分布式系统的Paxos算法一直被认为很难理解，也许是因为最初的表述对许多读者来说像希腊文一样晦涩\cite{lamport1998parttime}。事实上，它是最简单、最显然的分布式算法之一。它的核心是一个共识算法，也就是\cite{lamport1998parttime}中的“synod”算法。下一节将说明，这个共识算法几乎不可避免地从我们希望它满足的性质中推导出来。最后一节会解释完整的Paxos算法：只要把共识算法直接应用到构建分布式系统的状态机方法上，就能得到它。状态机方法应该已经广为人知，因为它是分布式系统理论中也许被引用最多的那篇文章\cite{lamport1978time}的主题。
