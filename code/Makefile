@@ -4,7 +4,15 @@ LOG_DIR := logs
 PID_DIR := pids
 BIN_DIR := bin
 CLIENT_ADDR ?= 127.0.0.1:8001
+CLIENT_ADDRS ?= $(PEERS)
 VAL ?= 1
+
+ifeq ($(firstword $(MAKECMDGOALS)),set)
+SET_ARG := $(word 2,$(MAKECMDGOALS))
+ifneq ($(SET_ARG),)
+VAL := $(SET_ARG)
+endif
+endif
 
 .PHONY: build start stop restart clean status get set
 
@@ -48,10 +56,13 @@ status: build
 	done
 
 get: build
-	$(BIN_DIR)/paxos-client -addr $(CLIENT_ADDR) -op get -retry
+	$(BIN_DIR)/paxos-client -addr $(CLIENT_ADDR) -addrs $(CLIENT_ADDRS) -op get -retry
 
 set: build
-	$(BIN_DIR)/paxos-client -addr $(CLIENT_ADDR) -op set -value $(VAL) -retry
+	$(BIN_DIR)/paxos-client -addr $(CLIENT_ADDR) -addrs $(CLIENT_ADDRS) -op set -value $(VAL) -retry
 
 clean: stop
 	rm -rf $(DATA_DIR) $(LOG_DIR) $(PID_DIR) $(BIN_DIR)
+
+%:
+	@:

@@ -53,6 +53,8 @@ Or use the Makefile wrapper, which retries forever on RPC/server errors:
 
 ```sh
 make set VAL=1
+# or
+make set 1
 ```
 
 Read the chosen value:
@@ -66,6 +68,10 @@ The retrying Makefile wrapper is:
 ```sh
 make get
 ```
+
+The retrying wrappers try all three server addresses in order. If one server is
+down or a network call fails, the client moves to the next address and keeps
+looping until one request succeeds.
 
 `get` is deliberately simple: it reads the value known by that server's durable
 acceptor state. There is no server-side learner broadcast in this demo; the

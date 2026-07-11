@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/rpc"
 	"os"
+	"strings"
 	"time"
 
 	"paxos-demo/comm"
@@ -14,6 +15,7 @@ import (
 func main() {
 	var (
 		addr       = flag.String("addr", "127.0.0.1:8001", "server address")
+		addrs      = flag.String("addrs", "", "comma-separated server addresses; used in order when retrying")
 		op         = flag.String("op", "get", "operation: get, set, or status")
 		value      = flag.Int("value", 0, "integer value for set")
 		retry      = flag.Bool("retry", false, "retry forever on RPC or server errors")
@@ -21,30 +23,54 @@ func main() {
 	)
 	flag.Parse()
 
+	targets := parseAddrs(*addr, *addrs)
 	switch *op {
 	case "status":
-		run(*retry, *retryDelay, func() error { return printStatus(*addr) })
+		run(targets, *retry, *retryDelay, printStatus)
 	case "get":
-		run(*retry, *retryDelay, func() error { return get(*addr) })
+		run(targets, *retry, *retryDelay, get)
 	case "set":
-		run(*retry, *retryDelay, func() error { return set(*addr, *value) })
+		run(targets, *retry, *retryDelay, func(addr string) error { return set(addr, *value) })
 	default:
 		fmt.Fprintf(os.Stderr, "unknown -op %q\n", *op)
 		os.Exit(2)
 	}
 }
 
-func run(retry bool, delay time.Duration, fn func() error) {
+func parseAddrs(addr string, raw string) []string {
+	if raw == "" {
+		return []string{addr}
+	}
+	parts := strings.Split(raw, ",")
+	addrs := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			addrs = append(addrs, part)
+		}
+	}
+	if len(addrs) == 0 {
+		return []string{addr}
+	}
+	return addrs
+}
+
+func run(addrs []string, retry bool, delay time.Duration, fn func(string) error) {
 	for {
-		err := fn()
-		if err == nil {
-			return
+		var lastErr error
+		for _, addr := range addrs {
+			err := fn(addr)
+			if err == nil {
+				return
+			}
+			lastErr = err
+			if !retry {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, "%s failed: %v\n", addr, err)
 		}
-		if !retry {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		fmt.Fprintf(os.Stderr, "retrying after error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "retrying after all targets failed; last error: %v\n", lastErr)
 		time.Sleep(delay)
 	}
 }
