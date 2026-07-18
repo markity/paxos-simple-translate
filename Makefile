@@ -1,11 +1,14 @@
-.PHONY: all translation clean
+.PHONY: all original translation clean
 
 all:
+	latexmk -jobname=paper-trans -xelatex -interaction=nonstopmode -halt-on-error translation-template.tex
+
+original:
 	latexmk -pdf -interaction=nonstopmode -halt-on-error paper.tex
 
 translation:
-	latexmk -xelatex -interaction=nonstopmode -halt-on-error translation-template.tex
+	latexmk -jobname=paper-trans -xelatex -interaction=nonstopmode -halt-on-error translation-template.tex
 
 clean:
 	latexmk -C paper.tex
-	latexmk -C translation-template.tex
+	latexmk -jobname=paper-trans -C translation-template.tex

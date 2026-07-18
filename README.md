@@ -4,14 +4,23 @@ LaTeX project for Leslie Lamport's *Paxos Made Simple*.
 
 The unchanged source paper is stored at `source/paxos-simple.pdf`.
 
-## Exact original build
+## Translation build
 
 ```sh
 make
 ```
 
-The default `paper.tex` embeds every original PDF page without reflowing text,
-so `paper.pdf` preserves the original content, typography, and pagination.
+The default build now compiles `translation-template.tex` and outputs
+`paper-trans.pdf`.
+
+## Exact original build
+
+```sh
+make original
+```
+
+`paper.tex` embeds every original PDF page without reflowing text, so
+`paper.pdf` preserves the original content, typography, and pagination.
 
 ## Translation workspace
 

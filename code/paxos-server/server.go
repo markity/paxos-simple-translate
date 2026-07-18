@@ -132,7 +132,7 @@ func (s *Server) Status(args comm.StatusArgs, reply *comm.StatusReply) error {
 func (s *Server) propose(preferred int) (int, error) {
 	majority := len(s.peers)/2 + 1
 
-	for attempt := 0; attempt < 20; attempt++ {
+	for {
 		value := preferred
 		n := s.proposalNumber(0)
 		prepareOK := 0
@@ -159,7 +159,7 @@ func (s *Server) propose(preferred int) (int, error) {
 
 		if prepareOK < majority {
 			s.bumpProposalNumber(maxPromised)
-			time.Sleep(time.Duration(20+attempt*10) * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 			continue
 		}
 
@@ -183,10 +183,8 @@ func (s *Server) propose(preferred int) (int, error) {
 		}
 
 		s.bumpProposalNumber(maxPromised)
-		time.Sleep(time.Duration(20+attempt*10) * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
-
-	return 0, errors.New("could not choose a value")
 }
 
 func (s *Server) proposalNumber(min int64) int64 {
