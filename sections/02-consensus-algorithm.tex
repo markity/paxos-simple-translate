@@ -11,7 +11,9 @@
 \item 进程只有在某个值确实已经被选定时，才会得知该值已被选定。
 \end{itemize}
 
-我们不试图精确规定活性要求。不过，目标是保证某个被提出的值最终会被选定；并且如果某个值已经被选
+我们不试图精确规定活性要求\emph{(译者注：这意味着我们只需要保证正确性，最终能让它
+达成一致就行了，对于效率或者后续提及的“活锁”导致很难才能选出值的问题不关心，工业
+界会有成熟的方法解决这个问题)}。不过，目标是保证某个被提出的值最终会被选定；并且如果某个值已经被选
 定，那么进程最终能够得知这个值。
 
 我们让三类agent承担共识算法中的三种角色：proposer、acceptor和learner。在一种实现中，单个
@@ -21,21 +23,32 @@
 
 \begin{itemize}
 \item Agent可以以任意速度运行，可以因停止而失败，也可以重启。由于所有agent都可能在某个值被选定
-后失败并重启，所以除非失败后重启的agent能够记住某些信息，否则不可能得到一个解。
-\item 消息可能经过任意长时间才送达，可能被复制，也可能丢失，但不会被篡改。
+后失败并重启，所以除非失败后重启的agent能够记住某些信息\emph{(译者注：这里暗示了使用非易失存储，例如磁盘)}，
+否则不可能得到一个解。
+\item 消息可能经过任意长时间才送达，可能被复制，也可能丢失，但不会
+被篡改\emph{(译者注：所有节点都是“诚实”的，不会伪造消息)}。
 \end{itemize}
 
 \subsection{选定一个值}
 选定一个值最简单的办法是只有一个acceptor agent。Proposer向acceptor发送一个proposal，而acceptor
 选择它收到的第一个被提出的值。这个方案虽然简单，但并不令人满意，因为一旦这个acceptor失败，系统就无法继续取得进展。
+\emph{(译者注：我们希望系统整体是一定程度上可容错的，部分节点失败不影响整体系统的运行；
+但是超过一定数量的节点失败，系统就无法继续运行，也是可以接受的。我们不希望单个节点失败不应该影响系统的运行)}
 
-所以，我们试试另一种选定值的办法。不要只有一个acceptor，而是使用多个acceptor agent。Proposer
-把一个被提出的值发送给一组acceptor。Acceptor可以接受这个被提出的值。当足够大的一组acceptor已经
-接受它时，这个值就被选定了。多大才算足够大？为了保证只有一个值会被选定，我们可以让“足够大的一组”指
-任意多数派acceptor。因为任意两个多数派至少有一个acceptor相交，所以只要每个acceptor至多接受一个
-值，这个办法就能成立。（许多论文都观察到多数派有一个显然的推广形式，最早似乎从\cite{lamport1978implementation}开始。）
+所以，我们试试另一种选定值的办法：使用多个acceptor。Proposer把一个被提出的值发送给一组acceptor。
+Acceptor可以接受这个被提出的值。当足够大的一组acceptor已经接受它时，这个值就被选定了。
+多大才算足够大？为了保证只有一个值会被选定，我们可以让“足够大的一组”指
+任意多数派acceptor
+\emph{(译者注：在本论文，acceptor数量是不会改变的，文章不讨论成员变更的情况，所以多数派的定义是固定的。
+例如，在数量为3个的情况下，多数派就是2个或者3个。在数量为5个的情况下，多数派就是3/4/5个)}。
+因为任意两个多数派至少有一个acceptor相交，所以只要每个acceptor至多接受一个
+值，这个办法就能成立。(对“多数派”概念存在一种显然的推广，这种推广已在大量论文中被
+讨论，显然最早可追溯到文献\cite{lamport1978implementation}。)
 
-在没有失败和消息丢失的情况下，即使只有一个proposer提出一个值，我们也希望有值被选定。这给出了下面的要求：
+在没有失败和消息丢失的情况下，即使只有一个proposer提出一个值，我们也希望有值被选定\emph{(译者注：
+see?这就是我之前提到的，论文整体的行文思路是“通过提出一些我们需要的一些特性来推倒算法流程”，这显然是
+我们希望满足的第一个特性)}。
+这给出了下面的要求：
 
 \begin{quote}
 P1. Acceptor必须接受它收到的第一个proposal。
@@ -44,89 +57,124 @@ P1. Acceptor必须接受它收到的第一个proposal。
 但这个要求带来了一个问题。多个不同的proposer可能几乎同时提出多个值，导致每个acceptor都已经接受
 了一个值，但没有任何一个值被多数acceptor接受。即使只有两个被提出的值，如果每个值都被大约一
 半acceptor接受，那么只要一个acceptor失败，就可能无法知道到底哪个值被选定。
+\emph{(译者注：这里其实作者有两个假设，一个是P1——也就是acceptor必须接受它收到的第一个proposal；
+第二个假设是acceptor只能接受一个proposal。举例来说，假如有4个acceptor，两个proposer提出了两
+个不同的值，导致每个value都被不同的两个acceptor接受，那么没有一个value被多数派接受。
+这时，值就不能被选出来，直接流程死锁)}
 
 P1以及“只有当一个值被多数acceptor接受时才被选定”这个要求意味着：必须允许acceptor接受不止一
-个proposal。我们给每个proposal分配一个自然数编号，用来区分acceptor可能接受的不同proposal。
-因此，一个proposal由proposal编号和值组成。为了避免混淆，我们要求不同proposal具有不同编号。
-如何做到这一点取决于具体实现，所以现在我们先直接假设它成立。当某个带有值\(v\)的proposal被多数
-acceptor接受时，这个值就被选定。在这种情况下，我们说这个proposal（以及它的值）已经被选定。
+个proposal\emph{(译者注：无奈之举，acceptor只能接受一个proposal必然不行，那么只能允许接受多个了)}。
+我们给每个proposal分配一个自然数编号，用来区分acceptor可能接受的不同proposal。
+因此，一个proposal由proposal编号和值组成\emph{(译者注：后续把它们称为proposal number
+和proposal value)}。为了避免混淆，我们要求不同proposal\emph{(译者注：什么叫不同的proposal?这里很
+微妙，这里可以暂且理解为“全局/全世界维度”只会有一份(proposal number,proposal value) tuple对，
+且不会存在两个proposal number相同的proposal。在这种全局proposal number唯一的情况下，一个
+proposal number只对应一个value，proposal number就是proposal的“唯一身份证”)}具有不同的proposal number。
+如何做到这一点\emph{(译者注：这里指的是如何做到“全局/全世界”维度的proposal，毕竟不同的agent有可能提
+出一样的proposal number，这样就撞号了)}取决于具体实现，所以现在我们先直接假设它成立。当某个带有
+值\(v\)的proposal被多数acceptor accept(接受)时，这个值就被“选定”。在这种情况下，我们说这个
+proposal(以及它的值)已经被chosen。
+\emph{(译者注：我举个例子，假如一个proposal是(5,3)，它被chosen，则代表proposal number=5的proposal被选定
+且value=3被chosen)}
 
-我们可以允许多个proposal被选定，但必须保证所有被选定的proposal都有相同的值。按proposal编号归
+我们可以允许多个proposal被chosen，但必须保证所有被选定的proposal都有相同的值。按proposal编号归
 纳，只要保证下面这一点就足够：
 
 \begin{quote}
 P2. 如果一个值为\(v\)的proposal被选定，那么每个编号更大的、被选定的proposal都具有值\(v\)。
+\emph{(译者注：这里很好理解，假如agent 1提出proposal(5,3)，且被全部acceptor accept了，那么事实上该
+proposal就被chosen了；随后agent 2提出proposal(6,4)，且也被全部acceptor accept了，那么其实就
+“覆写了”之前的工作。因此为了避免这样的事情发生，就提出了P2这个要求)}
 \end{quote}
 
-由于编号是全序的，条件P2保证了最关键的安全性性质：只有一个值会被选定。
+由于proposal number是全序\emph{(译者注：意味着任何两个proposal number之间都有明确的大小关系，且由于
+之前作者提到了proposal number是“全局唯一”的假设(虽然作出了假设，但是没说具体怎么实现的，后续后说的)，
+任何两个proposal都不会相等)}的，条件P2保证了最关键的安全性性质：只有一个值会被chosen。
 
-一个proposal要被选定，至少必须被一个acceptor接受。所以，我们可以通过满足下面这个条件来满足P2：
+一个proposal要被chosen，至少必须被一个acceptor accept。所以，我们可以通过满足下面这个条件来满足P2：
 
 \begin{quote}
-P2a. 如果一个值为\(v\)的proposal被选定，那么任何acceptor接受的每个编号更大的proposal都具有值\(v\)。
+P2a. 如果一个值为\(v\)的proposal被chosen，那么任何acceptor accept的每个编号更大的proposal都具有值\(v\)。
 \end{quote}
 
-我们仍然保持P1，以保证会有某个proposal被选定。由于通信是异步的，某个proposal可能已经被选定，而某
+我们仍然保持P1，以保证会有某个proposal被chosen。由于通信是异步的，某个proposal可能已经被chosen，而某
 个特定的acceptor \(c\)从未收到过任何proposal。假设一个新的proposer“醒来”，并发出一个编号更大、但值
 不同的proposal。P1要求\(c\)接受这个proposal，从而违反P2a。要同时保持P1和P2a，就必须把P2a加强为：
 
 \begin{quote}
-P2b. 如果一个值为\(v\)的proposal被选定，那么任何proposer发出的每个编号更大的proposal都具有值\(v\)。
+P2b. 如果一个值为\(v\)的proposal被chosen，那么任何proposer发出的每个编号更大的proposal都具有值\(v\)。
+\emph{(译者注：这里P2a是对acceptor作出了要求，要求accept满足条件。然而acceptor其实在Paxos的设计
+上更倾向于“孤立”的，不感知其它acceptor和全局状态，所以这里从源头入手，扩展成了P2b，也就是对proposer作出要求)}
 \end{quote}
 
 因为proposal必须先由proposer发出，才可能被acceptor接受，所以P2b蕴含P2a，而P2a又蕴含P2。
+\emph{(译者注：蕴含关系就是包含关系，P2b能推出P2a，P2a能推出P2，也就是说只要满足P2b，之前提到的P2a和P2也就满足了)}
 
-为了弄清楚如何满足P2b，我们先考虑怎样证明它成立。我们会假设某个编号为\(m\)、值为\(v\)的proposal已经
-被选定，然后证明任何编号为\(n>m\)的proposal也具有值\(v\)。为了让证明更容易，我们可以对\(n\)做归纳；也就
+为了弄清楚如何满足P2b，我们先考虑怎样证明它成立\emph{(译者注：这里的前提是(m,n)已经被chosen，
+问题是怎样设计协议，才能让这个条件一直成立)}。我们会假设某个编号为\(m\)、值为\(v\)的proposal已经
+被chosen，然后证明任何编号为\(n>m\)的proposal也具有值\(v\)。为了让证明更容易，我们可以对\(n\)做归纳；也就
 是说，在额外假设所有编号位于\(m..(n-1)\)之间的已发出proposal都具有值\(v\)的前提下，证明编号为\(n\)的
-proposal具有值\(v\)，其中\(i..j\)表示从\(i\)到\(j\)的所有编号集合。编号为\(m\)的proposal要被选定，必
-然存在某个由多数acceptor组成的集合\(C\)，使得\(C\)中的每个acceptor都接受了它。把这一点与归纳假设结合起
-来，“\(m\)已被选定”这个假设意味着：
+proposal具有值\(v\)，其中\(i..j\)表示从\(i\)到\(j\)的所有编号集合。编号为\(m\)的proposal要被chosen，必
+然存在某个由多数acceptor组成的集合\(C\)，使得\(C\)中的每个acceptor都accept了它。把这一点与归纳假设结合起
+来，“\(m\)已被chosen”这个假设意味着：
 
 \begin{quote}
-\(C\)中的每个acceptor都已经接受了某个编号位于\(m..(n-1)\)之间的proposal，并且任何acceptor接受的、编
+\(C\)中的每个acceptor都已经accept了某个编号位于\(m..(n-1)\)之间的proposal，并且任何acceptor accept的、编
 号位于\(m..(n-1)\)之间的每个proposal都具有值\(v\)。
 \end{quote}
 
-由于任何由多数acceptor组成的集合\(S\)都至少包含\(C\)中的一个成员，所以只要确保下面这个不变式一直成立，我
-们就能推出编号为\(n\)的proposal具有值\(v\)：
+由于任何由多数acceptor组成的集合\(S\)都至少包含\(C\)中的一个成员，所以只要确保下面这个不变式一直成立\emph{(译者
+注：这里导出P2c算这个论文最天马行空的地方了，它论述的是在(m,n)已经被chosen的前提下，怎样加强协议，让协议更可“操作化”
+的同时保证P2b)}，我们就能推出编号为\(n\)的proposal具有值\(v\)：
 
 \begin{quote}
 P2c. 对任意\(v\)和\(n\)，如果一个值为\(v\)、编号为\(n\)的proposal被发出，那么存在一个由多数acceptor
-组成的集合\(S\)，满足以下二者之一：（a）\(S\)中没有acceptor接受过任何编号小于\(n\)的proposal；或
-者（b）在\(S\)中所有acceptor接受过的、编号小于\(n\)的proposal里，编号最高的那个proposal的值是\(v\)。
+组成的集合\(S\)，满足以下二者之一：(a)\(S\)中没有acceptor accept过任何编号小于\(n\)的proposal；或
+者(b)在\(S\)中所有acceptor accept过的、编号小于\(n\)的proposal里，编号最高的那个proposal的值是\(v\)。
 \end{quote}
 
 因此，只要保持P2c这个不变式，我们就可以满足P2b。
 
 为了保持P2c这个不变式，想要发出编号为\(n\)的proposal的proposer必须获知：在某个多数acceptor集合中的
-每个acceptor那里，编号小于\(n\)且已经被接受或将会被接受的proposal里，编号最高的那个是什么（如果存在的话）。
-了解已经被接受的proposal很容易；预测未来会接受什么则很困难。Proposer不去预测未来，而是通过取得承诺来控制未
-来：让这些acceptor承诺不会再接受这样的proposal。换句话说，proposer请求acceptor不要再接受任何编号
-小于\(n\)的proposal。这导出了如下发出proposal的算法。
+每个acceptor那里，编号小于\(n\)且已经被accept或将会被accept的proposal里，编号最高的那个是什么(如果存在的话)。
+了解已经被accept的proposal很容易；预测未来会accept什么则很困难。Proposer不去预测未来，而是通过取得承诺来控制未
+来：让这些acceptor承诺不会再accept这样的proposal。换句话说，proposer请求acceptor不要再accept任何编号
+小于\(n\)的proposal。这导出了如下发出proposal的算法。\emph{(译者注：询问所有节点是不明智的，因为
+任何机器都会以随机的速度运行，状态随时会因为其它的proposal更改，在没有全局锁的情况下，只能放弃预测未来，而是
+通过取得承诺来控制未来)}
 
 \begin{enumerate}
 \item Proposer选择一个新的proposal编号\(n\)，向某个acceptor集合的每个成员发送请求，要求它回复：
 \begin{enumerate}
 \item 一个承诺：以后绝不再接受编号小于\(n\)的proposal；
-\item 它已经接受过的、编号小于\(n\)的最高编号proposal，如果存在的话。
+\item 它已经accept过的、编号小于\(n\)的最高编号proposal(如果存在的话)。
 \end{enumerate}
 我把这样的请求称为编号为\(n\)的prepare请求。
 
-\item 如果proposer收到了多数acceptor给出的所需响应，那么它就可以发出编号为\(n\)、值为\(v\)的proposal。
-这里的\(v\)是这些响应中最高编号proposal的值；如果响应者都报告没有接受过proposal，那么\(v\)可以是
-proposer自己选择的任意值。
+\item 如果proposer收到了多数acceptor给出的所需响应\emph{(译者注：proposer向所有acceptor发
+送prepare(n)，只要多数派say ok，那么就能进入下一步；如果拿不到多个acceptor的响应只能选择重试)}，
+那么它就可以发出编号
+为\(n\)、值为\(v\)的proposal\emph{(译者注：也就是接下来会提到的accept请求)}。
+这里的\(v\)是这些响应中最高编号proposal的值；如果acceptors都报告没有accept过proposal(\emph{(译者
+注：这个报告来自于prepare请求的返回)})，那么\(v\)可以是
+proposer自己选择的任意值\emph{(译者注：这里常见的做法是提出客户端传入的值；这里还有一个微妙
+的点，它强调了“都没有”(这里值的是返回的多个响应中都没有，不一定要求大
+家全部都响应)accept过proposal才能选择自己的值，否则就只能
+选择拿到的响应中最高proposal number对应的值了。)}。
 \end{enumerate}
 
-Proposer通过向某个acceptor集合发送请求，请求它们接受这个proposal，来发出proposal。
-（这个集合不必与响应初始请求的acceptor集合相同。）我们把这种请求称为accept请求。
+Proposer通过向某个acceptor集合发送请求，请求它们accept这个proposal，来发出proposal。
+(这个集合不必与响应初始请求的acceptor集合相同\emph{(译者注：事实上最好是向所有
+的acceptors发送请求)}。)我们把这种请求称为accept请求。
 
 上面描述的是proposer的算法。那么acceptor呢？Acceptor可能从proposer收到两类请求：prepare请求
-和accept请求。Acceptor可以忽略任何请求而不破坏安全性。所以，我们只需要说明它何时允许响应某个请求。
-它总是可以响应prepare请求。它可以响应accept请求并接受该proposal，当且仅当它没有承诺不这样做。换句话说：
+和accept请求。Acceptor可以忽略任何请求而不破坏安全性\emph{(译者注：分布式算法的特征就是
+能容忍任何丢包，dup，以及乱序，及时在极端的丢包场景下只要agent不断重试就理论能成功)}。
+所以，我们只需要说明它何时允许响应某个请求。它总是可以响应prepare请求。
+它可以响应accept请求并accept该proposal，当且仅当它没有承诺不这样做。换句话说：
 
 \begin{quote}
-P1a. Acceptor可以接受编号为\(n\)的proposal，当且仅当它尚未响应过任何编号大于\(n\)的prepare请求。
+P1a. Acceptor可以accept编号为\(n\)的proposal，当且仅当它尚未响应过任何编号大于\(n\)的prepare请求。
 \end{quote}
 
 注意，P1a包含了P1。
@@ -134,30 +182,30 @@ P1a. Acceptor可以接受编号为\(n\)的proposal，当且仅当它尚未响应
 现在我们已经有了一个完整的、满足所需安全性性质的选值算法，前提是proposal编号唯一。最终算法还要加入一个小优化。
 
 假设某个acceptor收到编号为\(n\)的prepare请求，但它已经响应过编号大于\(n\)的prepare请求，因此已经承诺
-不会接受任何新的编号为\(n\)的proposal。此时这个acceptor没有理由响应新的prepare请求，因为它不会接受
+不会accept任何新的编号为\(n\)的proposal。此时这个acceptor没有理由响应新的prepare请求，因为它不会accept
 该proposer想要发出的编号为\(n\)的proposal。所以，我们让acceptor忽略这样的prepare请求。我们也
-让它忽略针对它已经接受过的proposal的prepare请求。
+让它忽略针对它已经accept过的proposal的prepare请求。
 
-有了这个优化，acceptor只需要记住它曾经接受过的最高编号proposal，以及它已经响应过的最高编号prepare请求
+有了这个优化，acceptor只需要记住它曾经accept过的最高编号proposal，以及它已经响应过的最高编号prepare请求
 的编号。由于无论是否发生失败，P2c都必须保持为不变式，所以即使acceptor失败后重启，也必须记住这些信息。
 注意，proposer总是可以放弃一个proposal，并完全忘记它，只要它绝不再尝试发出另一个具有相同编号的proposal即可。
 
 把proposer和acceptor的动作合在一起，可以看到算法分两阶段运行。
 
-\textbf{阶段1。}（a）Proposer选择一个proposal编号\(n\)，向多数acceptor发送编号为\(n\)的prepare请求。
+\textbf{阶段1。}(a)Proposer选择一个proposal编号\(n\)，向多数acceptor发送编号为\(n\)的prepare请求。
 
-（b）如果acceptor收到编号为\(n\)的prepare请求，且\(n\)大于它已经响应过的任何prepare请求编号，那么它
-响应这个请求：承诺不再接受任何编号小于\(n\)的proposal，并附上它已经接受过的最高编号proposal（如果存在的话）。
+(b)如果acceptor收到编号为\(n\)的prepare请求，且\(n\)大于它已经响应过的任何prepare请求编号，那么它
+响应这个请求：承诺不再accept任何编号小于\(n\)的proposal，并附上它已经接受过的最高编号proposal(如果存在的话)。
 
-\textbf{阶段2。}（a）如果proposer收到多数acceptor对其编号为\(n\)的prepare请求的响应，那么它向
+\textbf{阶段2。}(a)如果proposer收到多数acceptor对其编号为\(n\)的prepare请求的响应，那么它向
 这些acceptor中的每一个发送accept请求，请求它们接受编号为\(n\)、值为\(v\)的proposal。这里的\(v\)是
 所有响应中最高编号proposal的值；如果响应报告没有proposal，那么\(v\)可以是任意值。
 
-（b）如果acceptor收到针对编号为\(n\)的proposal的accept请求，除非它已经响应过编号大于\(n\)的prepare
+(b)如果acceptor收到针对编号为\(n\)的proposal的accept请求，除非它已经响应过编号大于\(n\)的prepare
 请求，否则它接受该proposal。
 
 只要对每个proposal都遵循这个算法，一个proposer可以发出多个proposal。它也可以在协议中途的任何时
-刻放弃某个proposal。（即使该proposal的请求和/或响应在它被放弃很久之后才到达目的地，正确性仍然保持。）
+刻放弃某个proposal。(即使该proposal的请求和/或响应在它被放弃很久之后才到达目的地，正确性仍然保持。)
 如果某个proposer已经开始尝试发出编号更大的proposal，那么放弃当前proposal很可能是个好主意。因此，
 如果acceptor因为已经收到过编号更高的prepare请求而忽略某个prepare或accept请求，那么它大概应该告知
 proposer；proposer随后应该放弃自己的proposal。这是一种不影响正确性的性能优化。
@@ -192,14 +240,14 @@ proposal，所以proposer \(p\)针对编号为\(n_1\)的proposal发出的阶段2
 成功通信，并且使用的proposal编号大于所有已使用编号，那么它将成功发出一个会被接受的proposal。如果它得知某
 个请求带有更高proposal编号，就放弃自己的proposal并重试，那么这个指定proposer最终会选择一个足够高的proposal编号。
 
-因此，如果系统中足够多的部分（proposer、acceptor和通信网络）正常工作，就可以通过选出单个指定proposer
+因此，如果系统中足够多的部分(proposer、acceptor和通信网络)正常工作，就可以通过选出单个指定proposer
 来实现活性。Fischer、Lynch和Patterson的著名结果\cite{fischer1985impossibility}说明，用来选举
 proposer的可靠算法必须使用随机性或真实时间，例如使用超时。不过，无论选举成功还是失败，安全性都能得到保证。
 
 \subsection{实现}
 Paxos算法\cite{lamport1998parttime}假设存在一个由进程组成的网络。在它的共识算法中，每个进程都扮
 演proposer、acceptor和learner的角色。算法会选择一个leader，由它扮演指定proposer和指定learner。
-Paxos共识算法正是上面描述的算法，请求和响应作为普通消息发送。（响应消息会带上对应的proposal编号，以免混淆。）
+Paxos共识算法正是上面描述的算法，请求和响应作为普通消息发送。(响应消息会带上对应的proposal编号，以免混淆。)
 失败期间仍能保存的稳定存储用来维护acceptor必须记住的信息。Acceptor在实际发送响应之前，会先把它打算给出
 的响应记录到稳定存储中。
 

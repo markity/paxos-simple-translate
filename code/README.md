@@ -73,9 +73,10 @@ The retrying wrappers try all three server addresses in order. If one server is
 down or a network call fails, the client moves to the next address and keeps
 looping until one request succeeds.
 
-`get` is deliberately simple: it reads the value known by that server's durable
-acceptor state. There is no server-side learner broadcast in this demo; the
-client learns the chosen value from the `set` response.
+`get` performs a read-repair round. It runs a fresh prepare against a majority;
+if that majority reports no accepted value, it returns `nil`. Otherwise it
+inherits the highest-numbered accepted value, completes an accept round for that
+value, and returns the resulting chosen value.
 
 Try to choose a different value after one has already been chosen:
 

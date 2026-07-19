@@ -105,12 +105,14 @@ func (s *Server) Set(args comm.SetArgs, reply *comm.SetReply) error {
 }
 
 func (s *Server) Get(args comm.GetArgs, reply *comm.GetReply) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	value, ok, err := s.readChosen()
+	if err != nil {
+		return err
+	}
 
-	reply.OK = s.state.HasAccepted
-	if s.state.HasAccepted {
-		reply.Value = s.state.AcceptedValue
+	reply.OK = ok
+	if ok {
+		reply.Value = value
 	}
 	return nil
 }
@@ -133,34 +135,16 @@ func (s *Server) propose(preferred int) (int, error) {
 	majority := len(s.peers)/2 + 1
 
 	for {
-		value := preferred
-		n := s.proposalNumber(0)
-		prepareOK := 0
-		highestAcceptedN := int64(0)
-		maxPromised := int64(0)
-
-		for _, peer := range s.peers {
-			var reply comm.PrepareReply
-			if err := call(peer, "Paxos.Prepare", comm.PrepareArgs{N: n}, &reply); err != nil {
-				continue
-			}
-			if reply.PromisedN > maxPromised {
-				maxPromised = reply.PromisedN
-			}
-			if !reply.OK {
-				continue
-			}
-			prepareOK++
-			if reply.HasAccepted && reply.AcceptedN > highestAcceptedN {
-				highestAcceptedN = reply.AcceptedN
-				value = reply.AcceptedValue
-			}
-		}
-
+		n, prepareOK, maxPromised, highestAcceptedN, highestAcceptedValue := s.runPrepare()
 		if prepareOK < majority {
 			s.bumpProposalNumber(maxPromised)
 			time.Sleep(20 * time.Millisecond)
 			continue
+		}
+
+		value := preferred
+		if highestAcceptedN > 0 {
+			value = highestAcceptedValue
 		}
 
 		acceptOK := 0
@@ -185,6 +169,71 @@ func (s *Server) propose(preferred int) (int, error) {
 		s.bumpProposalNumber(maxPromised)
 		time.Sleep(20 * time.Millisecond)
 	}
+}
+
+func (s *Server) readChosen() (int, bool, error) {
+	majority := len(s.peers)/2 + 1
+
+	for {
+		n, prepareOK, maxPromised, highestAcceptedN, highestAcceptedValue := s.runPrepare()
+		if prepareOK < majority {
+			s.bumpProposalNumber(maxPromised)
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		if highestAcceptedN == 0 {
+			return 0, false, nil
+		}
+
+		acceptOK := 0
+		for _, peer := range s.peers {
+			var reply comm.AcceptReply
+			if err := call(peer, "Paxos.Accept", comm.AcceptArgs{N: n, Value: highestAcceptedValue}, &reply); err != nil {
+				continue
+			}
+			if reply.PromisedN > maxPromised {
+				maxPromised = reply.PromisedN
+			}
+			if reply.OK {
+				acceptOK++
+			}
+		}
+
+		if acceptOK >= majority {
+			return highestAcceptedValue, true, nil
+		}
+
+		s.bumpProposalNumber(maxPromised)
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func (s *Server) runPrepare() (int64, int, int64, int64, int) {
+	n := s.proposalNumber(0)
+	prepareOK := 0
+	highestAcceptedN := int64(0)
+	highestAcceptedValue := 0
+	maxPromised := int64(0)
+
+	for _, peer := range s.peers {
+		var reply comm.PrepareReply
+		if err := call(peer, "Paxos.Prepare", comm.PrepareArgs{N: n}, &reply); err != nil {
+			continue
+		}
+		if reply.PromisedN > maxPromised {
+			maxPromised = reply.PromisedN
+		}
+		if !reply.OK {
+			continue
+		}
+		prepareOK++
+		if reply.HasAccepted && reply.AcceptedN > highestAcceptedN {
+			highestAcceptedN = reply.AcceptedN
+			highestAcceptedValue = reply.AcceptedValue
+		}
+	}
+
+	return n, prepareOK, maxPromised, highestAcceptedN, highestAcceptedValue
 }
 
 func (s *Server) proposalNumber(min int64) int64 {
