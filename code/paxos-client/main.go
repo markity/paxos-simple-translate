@@ -123,7 +123,7 @@ func printStatus(addr string) error {
 	if err := client.Call("Paxos.Status", comm.StatusArgs{}, &reply); err != nil {
 		return err
 	}
-	fmt.Printf("server=%d addr=%s promised=%d accepted=(%t,%d,%d) data=%s\n",
+	fmt.Printf("server=%d addr=%s promised=%s accepted=(%t,%s,%d) data=%s\n",
 		reply.ID,
 		reply.Addr,
 		reply.PromisedN,

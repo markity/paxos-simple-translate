@@ -1,3 +1,4 @@
+% !TeX root = ../paper.tex
 \section{共识算法}
 
 \subsection{问题}
@@ -123,10 +124,10 @@ P2. 如果一个值为\(v\)的Proposal被选定，那么每个编号更大的、
 
 \begin{quote}
 P2a. 如果一个值为\(v\)的Proposal被chosen，那么任何Acceptor accept的每个编号更大
-的Proposal都具有值\(v\)。\emph{(译者注：要求一个value被chosen，实际上说的就是在
-任何时刻，集群中存在一个大多数认可了某个值，那么后续就绝对不能出现一个时刻，使得另外
-一个value被大多数Acceptor认可，然而这个要求太宽泛，太难描述，所以作者提出了P2a，它
-显然更严格，如果能满足它，那么满足P2也是很显然的)}
+的Proposal都具有值\(v\)。\emph{(译者注：Paxos要求一个最多只有一个value被chosen，
+实际上说的就是在任何时刻，假如集群中存在一个大多数认可了某个值，那么后续就绝对不能出现另
+一个时刻，使得另外一个value被大多数Acceptor认可，然而这个要求太宽泛，太难
+描述。所以作者提出了P2a，它显然更严格，且如果能满足它，那么满足P2也是很显然的)}
 \end{quote}
 
 我们仍然要求P1，以保证会有某个Proposal被chosen。由于通信是异步的，某个Proposal可能已经
@@ -293,12 +294,17 @@ Acceptor可以明确接受或者拒绝这个Prepare，在论文作者的语义�
 \begin{quote}
 {\footnotesize
 \begin{verbatim}
+message ProposalNumber {
+    int64 round = 1;
+    int64 machine_id = 2;
+}
+
 message PrepareResponse {
     bool  ok = 1; // true=Promised, false=Reject
     // 见过的最大Promised编号，Reject时供Proposer跳号
-    int64 max_promised_number = 2;
+    ProposalNumber max_promised_number = 2;
     // 历史上接受过的最高编号提案
-    int64 max_accepted_number = 3;
+    ProposalNumber max_accepted_number = 3;
     bytes max_accepted_value  = 4;
 }
 \end{verbatim}
@@ -328,7 +334,7 @@ Response都说自己没有accept过任何Proposal，由于这仍然是一个大�
 // 以 Protobuf 为例的工程化定义
 message AcceptResponse {
     bool ok = 1;
-    int64 max_promised_number = 2;
+    ProposalNumber max_promised_number = 2;
 }
 \end{verbatim}
 }
@@ -374,26 +380,26 @@ message AcceptResponse {
 更一般地，Acceptor可将Acceptance发送给一组指定的Learner。
 每个指定Learner都可以在某个值被选定时通知所有Learner。增加指定
 Learner的数量可以提高可靠性，代价是更高的通信复杂度。
+
 \emph{译者注：上面说的是Learner和Acceptor是两组集群，其中客户端
 可以向Learner询问最终选择的值，这里谈了怎么让Learner知道最终被chosen
 的值。上面提到的做法是把Acceptance(也就是某个Instance接受了某
 个Proposal的信息)发送给Learner。Learner可以在内存里面维护一张表，Key
 为ProposalNum，Value为已收到的Acceptor集合，当某个Proposal的
-Acceptor集合大小达到多数，就可以肯定这个值被chosen了。
-关于“发送”，上面提到了三个方法，
+Acceptor集合大小达到多数，就可以肯定这个值被chosen了(这个可能
+比较难以理解，读者可以多想想具体的case)。关于“发送”，主要讨论的是解
+决Fan Out问题的方案，其中提到了三个方法，
 一个是Acceptor接受一个accept请求时发送给所有Learner这个信息，这是
 全量广播，很容易引发广播风暴；第二个方法是指定一个Learner，所有Acceptor
 只向它发送Acceptance，等它确定某个Proposal被多数Acceptor接受后，
 就向所有其它Learner广播信息，这个方法的缺点是容易引发单点故障；
 第三种方法是综合了第一种和第二种，指定一组Learner接收Acceptance，
 其中任意节点得知某个Proposal获得多数accept后，就向其它所有Learner
-广播这个信息。所以这里主要讨论的是解决Fan Out问题的方案。当客户端
+广播这个信息。当客户端
 向某个Learner询问是否选出值，即使集群中实际已经chosen，如
 果Learner尚未收到足够广播或攒够多数派，也无法立刻确认，因
 此Learner的查询具有滞后性，要解决这个问题，可以看下面的
-文本，描述的是一种用prepare+accept的方法取得chosen值的方法，这种
-方法可以在执行完整的Prepare+Accept流程后得到被选定的值；若要把它称为线性
-一致的读，还需要明确操作的线性化点以及与并发Proposal之间的关系}
+文本}
 
 由于消息可能丢失，一个值可能已经被选定，却没有任何Learner知道。
 Learner可以询问Acceptor它们接受过哪些Proposal，但如果某个Acceptor
@@ -401,13 +407,15 @@ Learner可以询问Acceptor它们接受过哪些Proposal，但如果某个Accept
 这种情况下，Learner只有当一个新的Proposal被选定时，才会知道被选定
 的值是什么。如果某个Learner需要知道是否已经有值被选定，它可以让一
 个Proposer使用前面描述的算法发出一个Proposal。\emph{(译者注：
-相当于走一遍Prepare+Accept流程。在Prepare阶段，如果多数Acceptor作出
-承诺，并且都报告此前没有accept过任何Proposal，那么可以确定在该次阶段1
-形成多数派承诺之前，没有Proposal已经被chosen。若实现选择在这里返回Null，
-应把这次成功的阶段1完成点作为读操作的线性化点；并发的更高编号Proposal仍
-可能在此后被chosen。否则，Proposer必须继承响应中最高编号Proposal的值，并
-继续Accept流程，以选定或重新确认这个值。原文给出的通用做法是让Proposer按
-完整算法发出一个Proposal)}
+Learner可以让一个Proposer发起Prepare，并收集多数派Acceptor的响应。
+如果多数派均表示从未接受过任何Proposal，那么根据多数派交集性质，可以
+确定在本次Prepare取得多数派Promise的时刻之前，尚未有值被chosen，
+因此可以返回Null。否则，Prepare响应中出现的value不一定已经
+被chosen，Proposer需要按照Paxos规则，选择响应中编号最高的已接
+受Proposal所对应的Value，并继续完成Accept阶段，使该value最终
+被chosen。需要注意，这种读取可能会主动选定一个此前尚未chosen的
+值，因此它不仅是查询，也可能修改Paxos实例的状态。由于读取通过多数派建
+立了一个线性化点，所以不会返回滞后的结果，可以视为线性一致性读)}
 
 \subsection{进展}
 很容易构造这样一种场景：两个Proposer各自不断发出一系列编号递增
@@ -465,7 +473,12 @@ Acceptor在实际发送响应之前，会先把它打算给出的响应记录到
 让节点作为代理转发给Leader，让Leader进行Prepare+Accept操作}
 
 剩下要描述的只有一种机制：如何保证永远不会有两个Proposal以相同编号
-被发出。不同Proposer从彼此不相交的编号集合中选择编号，所以两个不同
-的Proposer绝不会发出编号相同的Proposal。每个Proposer会在稳定存储
-中记住它曾经尝试发出的最高编号Proposal，并在阶段1中使用一个高于自
-己已经用过的所有编号的Proposal编号。
+被发出\emph{(译者注：Basic Paxos不允许不同的Proposer提出相同
+的Proposal Number)}。不同Proposer从彼此不相交的编号集合中选择编
+号，所以两个不同的Proposer绝不会发出编号相同
+的Proposal\emph{(译者注：解决不同Proposal的Proposal number冲
+突，实际上很常见的做法是使用(递增号,节点标识)这样的二元组作
+为ProposalNumber，排序规则是先按递增号排序，若相同再按节点标识
+排序)}。每个Proposer会在稳定存储中记住它曾经尝试发出的最高编
+号Proposal，并在阶段1中使用一个高于自己已经用过的所有编号
+的Proposal编号(\emph{(译者注：持久化是用来解决崩溃后恢复的)})。

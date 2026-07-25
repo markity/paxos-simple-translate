@@ -10,8 +10,8 @@ The unchanged source paper is stored at `source/paxos-simple.pdf`.
 make
 ```
 
-The default build now compiles `translation-template.tex` and outputs
-`paper-trans.pdf`.
+The default build compiles the Chinese translation from `paper.tex` and
+outputs `paper.pdf`.
 
 ## Exact original build
 
@@ -19,14 +19,16 @@ The default build now compiles `translation-template.tex` and outputs
 make original
 ```
 
-`paper.tex` embeds every original PDF page without reflowing text, so
-`paper.pdf` preserves the original content, typography, and pagination.
+`original.tex` embeds every original PDF page without reflowing text and
+outputs `original.pdf`, preserving the original content, typography, and
+pagination.
 
 ## Translation workspace
 
-The editable, Chinese-compatible single-column template is
-`translation-template.tex`. Its body is split across `sections/*.tex` and
-follows the original section structure.
+The editable, Chinese-compatible single-column root document is `paper.tex`.
+Its body is split across `sections/*.tex` and follows the original section
+structure. Every section declares `paper.tex` as its TeX root so editor
+auto-builds triggered on save compile the Chinese translation.
 
 ```sh
 make translation

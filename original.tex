@@ -1,0 +1,11 @@
+% !TeX program = pdflatex
+\documentclass[letterpaper]{article}
+\usepackage{pdfpages}
+
+\begin{document}
+\includepdf[
+  pages=-,
+  noautoscale=true,
+  pagecommand={\thispagestyle{empty}}
+]{source/paxos-simple.pdf}
+\end{document}

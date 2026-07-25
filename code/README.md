@@ -17,6 +17,12 @@ If a value has already been chosen, later `set` calls return the chosen value wi
 Acceptor state is persisted as JSON before replies are sent, so `promisedN`,
 `acceptedN`, and `acceptedValue` survive server restarts.
 
+Proposal numbers are lexicographically ordered pairs `(round, machine_id)`.
+Each server persists its monotonically increasing `round` before sending a
+Prepare request, while its unique `machine_id` breaks ties between servers
+that choose the same round. A restarted server must use the same `-id` and
+`-data` directory so it cannot reuse one of its earlier proposal numbers.
+
 ## Build
 
 ```sh
