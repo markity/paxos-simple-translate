@@ -2,9 +2,9 @@
 \section{共识算法}
 
 \subsection{问题}
-假设有一组进程可以提出值。共识算法要保证：在这些被提出的值中，只会有一个值被选定。如果没有任何
-值被提出，那么就不应该有值被选定。如果某个值已经被选定，那么进程应该能够得知这个被选定的值。
-共识的安全性要求如下：
+假设有一组进程可以提出值。共识算法要保证：在这些被提出的值中，只会有一个值被选定。如果
+没有任何值被提出，那么就不应该有值被选定。如果某个值已经被选定，那么进程应该能够得知这
+个被选定的值。共识的安全性要求如下：
 
 \begin{itemize}
 \item 只有被提出过的值才可以被选定；
@@ -17,15 +17,14 @@
 界会有成熟的方法解决这个问题)}。不过，目标是保证某个被提出的值最终会被选定；并且如果
 某个值已经被选定，那么进程最终能够得知这个值。
 
-我们让三类Agent承担共识算法中的三种角色：Proposer、Acceptor和Learner。在一种实现中，
-单个进程可以扮演多个Agent，但Agent到进程的映射关系不是这里关心的问题。
+我们让三类Agent承担共识算法中的三种角色：Proposer、Acceptor和Learner。在一种实
+现中，单个进程可以扮演多个Agent，但Agent到进程的映射关系不是这里关心的问题。
 
-\emph{译者注：在code目录下实现了一个Basic Paxos MVP，包含一份Server代码和一
-份Client代码，其中Server就同时扮演了Proposer、Acceptor和Learner的角
+\emph{译者注：我在code目录下实现了一个Basic Paxos MVP，包含一份Server代码和
+一份Client代码，其中Server就同时扮演了Proposer、Acceptor和Learner的角
 色，Client只是一个独立进程/外部调用方，不属于Paxos三个角色中的任意一
-个，可以理解为外部客户端向这些角色发送请求，然后它们充当Proposer，执行
-完后将结果返回给客户端，客户端不会是Proposer。
-Server为Client提供了以下接口：}
+个，可以理解为外部客户端向这些服务器发送请求，Server自己充当Proposer，执行
+完后将结果返回给客户端，客户端不会是Proposer。Server为Client提供了以下接口：}
 
 \begin{quote}
 {\small
@@ -481,4 +480,4 @@ Acceptor在实际发送响应之前，会先把它打算给出的响应记录到
 为ProposalNumber，排序规则是先按递增号排序，若相同再按节点标识
 排序)}。每个Proposer会在稳定存储中记住它曾经尝试发出的最高编
 号Proposal，并在阶段1中使用一个高于自己已经用过的所有编号
-的Proposal编号(\emph{(译者注：持久化是用来解决崩溃后恢复的)})。
+的Proposal编号\emph{(译者注：持久化是用来解决崩溃后恢复的)}。
