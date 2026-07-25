@@ -2,6 +2,7 @@
 
 \usepackage{iftex}
 \ifXeTeX
+  \PassOptionsToPackage{quiet}{fontspec}
   \usepackage[UTF8,fontset=fandol]{ctex}
   \usepackage{fontspec}
   \setmainfont{Latin Modern Roman}
@@ -23,6 +24,7 @@
 \date{2001年11月1日}
 
 \begin{document}
+\hypersetup{pageanchor=false}
 \maketitle
 
 \begin{abstract}
@@ -33,7 +35,8 @@
 
 \tableofcontents
 \clearpage
-\setcounter{page}{1}
+\hypersetup{pageanchor=true}
+\pagenumbering{arabic}
 
 \input{sections/01-introduction}
 \input{sections/02-consensus-algorithm}
