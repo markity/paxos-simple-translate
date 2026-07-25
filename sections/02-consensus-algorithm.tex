@@ -93,8 +93,7 @@ P1以及“只有当一个值被多数Acceptor接受时才被选定”这个要�
 的Proposal。在这种全局Proposal number唯一的情况下，一个Proposal number只对应
 一个value。Proposal number就是Proposal的“唯一身份证”)}具有不同的Proposal number。
 如何做到这一点\emph{(译者注：这里指的是如何避免不同Proposer生成相同的Proposal
-编号。这个保证由具体实现负责，后面读者会知道这其实是Prepare的“承诺”机制，通过承诺
-控制未来做到的，这点可以仔细看后面的章节)}取决于具体实现，所以
+编号。这个保证由具体实现负责，具体操作可以看本章节最后一段)}取决于具体实现，所以
 现在我们先直接假设它成立。当某个带有值\(v\)的Proposal被多数Acceptor accept(接受)时，这
 个值就被“选定”。在这种情况下，我们说这个Proposal(以及它的值)已经被chosen。
 \emph{(译者注：我举个例子，假如一个Proposal是(5,3)，它被chosen，则代
