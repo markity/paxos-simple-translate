@@ -35,9 +35,11 @@ func (Server) Set(val int) (setSuccess bool, value int);
 }
 \end{quote}
 
+\emph{
 客户端可以Get查询当前Server是否已经选定了值，如果已选定就返回(true,当前选定的值)，否
 则返回(false, 0)；也可以Set写入值，但是由于Basic Paxos只能选出一个值，如果值已经被选
 定，那么写入会失败，返回(false, 当前选定的值)。
+}
 
 假设Agent之间可以通过发送消息来通信。我们采用通常的异步、非拜占庭模型，其中：
 
