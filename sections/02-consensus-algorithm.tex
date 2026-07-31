@@ -56,8 +56,8 @@ func (Server) Set(val int) (setSuccess bool, value int);
 选择它收到的第一个被提出的值。这个方案虽然简单，但并不令人满意，因为一旦这个Acceptor失败，
 系统就无法继续取得进展。
 \emph{(译者注：我们希望系统整体具有一定程度的容错能力，部分节点失败不影响整体系统的运行；
-但超过一定数量的节点失败后，系统无法继续运行也是可以接受的。我们不希望单个节点失败
-就让整个系统无法工作)}
+但超过一定数量的节点失败后，系统无法继续运行也是可以接受的。很显然，我们不希望单个节点失败
+就让整个系统无法工作，单点故障是无法接受的)}
 
 所以，我们试试另一种选定值的办法：使用多个Acceptor。Proposer把一个被提出的值发送给一
 组Acceptor。Acceptor可以接受这个被提出的值。当足够大的一组Acceptor已经接受它时，这个
@@ -86,8 +86,9 @@ P1. Acceptor必须接受它收到的第一个Proposal。
 这时，值就不能被选出来，直接流程死锁)}
 
 P1以及“只有当一个值被多数Acceptor接受时才被选定”这个要求意味着：必须允许Acceptor接受不止一
-个Proposal\emph{(译者注：无奈之举，Acceptor只能接受一个Proposal必然不行，那么只能允许接
-受多个了)}。我们给每个Proposal分配一个自然数编号，用来区分Acceptor可能接受的不同Proposal。
+个Proposal\emph{(译者注：经过之前的讨论，假设只允许Acceptor接受一个Proposal，就很有平分
+票导致流程死锁，那么只能允许接受多个了)}。我们给每个Proposal分配一个自然数编号，
+用来区分Acceptor可能接受的不同Proposal。
 因此，一个Proposal由Proposal编号和值组成\emph{(译者注：后续把它们称为Proposal number
 和Proposal value)}。为了避免混淆，我们要求不同Proposal\emph{(译者注：什么叫不同
 的Proposal?这里很微妙，这里可以暂且理解为“全局/全世界维度”只会有一份
@@ -98,10 +99,11 @@ P1以及“只有当一个值被多数Acceptor接受时才被选定”这个要�
 编号。这个保证由具体实现负责，具体操作可以看本章节最后一段)}取决于具体实现，所以
 现在我们先直接假设它成立。当某个带有值\(v\)的Proposal被多数Acceptor accept(接受)时，这
 个值就被“选定”。在这种情况下，我们说这个Proposal(以及它的值)已经被chosen。
-\emph{(译者注：我举个例子，假如一个Proposal是(5,3)，它被chosen，则代
-表Proposal number=5的Proposal被chosen且value=3被chosen，后续我会频繁地使用“chosen”)}
+\emph{(译者注：我举个例子，假如一个Proposal是(5,3)，被大多数Acceptor accept了，那
+么就说Proposal number=5，value=3的Proposal被chosen了，并且value=3也被chosen了。
+“chosen”这个词很重要，后续我会频繁地使用“chosen”)}
 
-我们可以允许多个Proposal被chosen，但必须保证所有被选定的Proposal都有相同的值。按Proposal编号归
+我们可以允许多个Proposal被chosen，但必须保证所有被chosen的Proposal都有相同的值。按Proposal编号归
 纳，只要保证下面这一点就足够：
 
 \begin{quote}
@@ -114,9 +116,9 @@ P2. 如果一个值为\(v\)的Proposal被选定，那么每个编号更大的、
 要求集群中的所有大多数只能认可一个值，而不能“切换”到另外一个值，这就是Paxos的核心思想)}
 \end{quote}
 
-由于Proposal number是全序\emph{(译者注：意味着任何两个Proposal number之间都有明确的大小
+由于Proposal number是全序的\emph{(译者注：意味着任何两个Proposal number之间都有明确的大小
 关系；再结合Proposal number“全局唯一”的假设，任何两个不同Proposal的编号都不会相等。
-具体的编号生成方式会在后文说明)}的，条件P2保证了最关键的安全性
+具体怎么实现全局唯一的编号生成，这点会在后文说明)}，条件P2保证了最关键的安全性
 质：只有一个值会被chosen。
 
 一个Proposal要被chosen，至少必须被一个Acceptor accept。所以，我们可以通过满足下面这个条
@@ -141,7 +143,7 @@ Proposal都具有值\(v\)。\emph{(译者注：P2a是对Acceptor作出了要求�
 足条件。译者认为提出P2b的原因有两个，一就是论文中提到的，“突然醒来”的case，P2a和
 P1打架的情况；第二个思考我认为可以这样想：Acceptor在Paxos的设计上更倾向于“孤立”的，
 不感知其它Acceptor和全局状态，所以这里从源头，也就是Proposer入手，扩展成
-了P2b，对Proposer作出要求)}
+了P2b，对Proposer发出的Proposal作出要求)}
 \end{quote}
 
 因为Proposal必须先由Proposer发出，才可能被Acceptor接受，所以P2b蕴含P2a，而P2a又蕴含P2。
