@@ -96,7 +96,7 @@ P1以及“只有当一个值被多数Acceptor接受时才被选定”这个要�
 的Proposal。在这种全局Proposal number唯一的情况下，一个Proposal number只对应
 一个value。Proposal number就是Proposal的“唯一身份证”)}具有不同的Proposal number。
 如何做到这一点\emph{(译者注：这里指的是如何避免不同Proposer生成相同的Proposal
-编号。这个保证由具体实现负责，具体操作可以看本章节最后一段)}取决于具体实现，所以
+编号。这个保证由具体实现负责，具体操作可以看2.5章节“实现”的最后一段)}取决于具体实现，所以
 现在我们先直接假设它成立。当某个带有值\(v\)的Proposal被多数Acceptor accept(接受)时，这
 个值就被“选定”。在这种情况下，我们说这个Proposal(以及它的值)已经被chosen。
 \emph{(译者注：我举个例子，假如一个Proposal是(5,3)，被大多数Acceptor accept了，那
@@ -253,7 +253,11 @@ Proposer通过向某个Acceptor集合(这个集合不必与响应初始请求
 P1a. Acceptor可以accept编号为\(n\)的Proposal，当且仅当它尚未响应过任何
 编号大于\(n\)的Prepare请求。\emph{(译者注：Acceptor响应Prepare(N)后会做出
 承诺：绝不再接受编号小于N的Proposal。对于编号更小的Prepare请求，Acceptor
-可以忽略或明确拒绝，但不能把Prepare请求本身表述成被accept的Proposal)}
+可以忽略或明确拒绝(本论文只提到了忽略)，但不能把Prepare请求本身表述成
+被accept的Proposal。值的留意的是，在本论文中Accepotr的“响应”其实指的
+就是accept，也就是接受；而忽略则代表拒绝，但在工业实现中，拒绝其实也可以直接
+明确地返回Response，并且带上Max Promised Number，帮
+助Proposer跳号，这些代码都可以在code里面看到)}
 \end{quote}
 
 注意，P1a包含了P1。
@@ -270,7 +274,7 @@ P1a. Acceptor可以accept编号为\(n\)的Proposal，当且仅当它尚未响应
 Acceptor可以明确接受或者拒绝这个Prepare，在论文作者的语义中，它认为忽略
 就是拒绝，响应就是接受并承诺。而我认为我们不应该忽略，而是通过一个bool控制
 明确接受或拒绝，拒绝的时候可以带出Acceptor当前
-的Max Promised Number，帮助Proposer更快地达成目标)}
+的Max Promised Number，帮助Proposer更快地跳号以达成目标)}
 
 有了这个优化，Acceptor只需要记住它曾经accept过的最高编
 号Proposal，以及它已经响应过的最高编号Prepare请求的编号
@@ -345,7 +349,7 @@ message AcceptResponse {
 (b)如果Acceptor收到针对编号为\(n\)的Proposal的accept请求，除非它已经
 响应\emph{(译者注：论文中的响应其实指的是接受)}过编号大于\(n\)
 的Prepare请求，否则它接受该Proposal\emph{
-(译者注：ok==true，并且返回的Max Promised Number必然等于
+(译者注：接受该Proposal时ok==true，并且返回的Max Promised Number必然等于
 该Proposal number，因为接受者也会像Prepare一样更新自己
 的Max Promised Number。
 倘若拒绝，那么这个Max Promised Number也可以帮忙Proposer跳跃编号。如果
@@ -362,7 +366,7 @@ message AcceptResponse {
 后应该放弃自己的Proposal。这是一种不影响正确性的性能优化。
 \emph{(译者注：这里在说一个优化，意思是不论是Prepare还
 是Accept请求，如果在Response里发现Max Promised Number大于
-自己的Proposal Number时，说明该放弃，直接重开了，这个Proposal一定
+自己的Proposal Number时，说明该放弃，直接重开了，自己的Proposal一定
 选不上了)}
 
 \subsection{获知被选定的值}
