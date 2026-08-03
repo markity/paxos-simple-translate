@@ -78,6 +78,34 @@ func TestProposalRoundJumpsPastObservedNumber(t *testing.T) {
 	}
 }
 
+func TestMessagesToSelfUseLocalCalls(t *testing.T) {
+	const self = "not-a-listening-address"
+	server, err := NewServer(0, self, []string{self}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := comm.ProposalNumber{Round: 1, MachineID: 0}
+	var prepareReply comm.PrepareReply
+	if err := server.sendPrepare(self, comm.PrepareArgs{N: n}, &prepareReply); err != nil {
+		t.Fatalf("local prepare failed: %v", err)
+	}
+	if !prepareReply.OK {
+		t.Fatal("local prepare was rejected")
+	}
+
+	var acceptReply comm.AcceptReply
+	if err := server.sendAccept(self, comm.AcceptArgs{N: n, Value: 42}, &acceptReply); err != nil {
+		t.Fatalf("local accept failed: %v", err)
+	}
+	if !acceptReply.OK {
+		t.Fatal("local accept was rejected")
+	}
+	if !server.state.HasAccepted || server.state.AcceptedValue != 42 {
+		t.Fatalf("local accept did not update state: %+v", server.state)
+	}
+}
+
 func TestLegacyIntegerStateIsMigrated(t *testing.T) {
 	dataDir := t.TempDir()
 	dataFile := filepath.Join(dataDir, "server-0.json")

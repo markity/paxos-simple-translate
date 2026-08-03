@@ -15,7 +15,6 @@ import (
 func main() {
 	var (
 		id       = flag.Int("id", 0, "server id, usually 0..N-1")
-		addr     = flag.String("addr", "127.0.0.1:8001", "listen address")
 		peersCSV = flag.String("peers", "127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003", "comma-separated peer addresses")
 		dataDir  = flag.String("data", "data", "directory for durable acceptor state")
 	)
@@ -26,8 +25,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "invalid -id %d for %d peers\n", *id, len(peers))
 		os.Exit(2)
 	}
+	addr := peers[*id]
 
-	s, err := NewServer(*id, *addr, peers, *dataDir)
+	s, err := NewServer(*id, addr, peers, *dataDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,11 +36,11 @@ func main() {
 	}
 	rpc.HandleHTTP()
 
-	ln, err := net.Listen("tcp", *addr)
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("server %d listening on %s peers=%s majority=%d", *id, *addr, strings.Join(peers, ","), len(peers)/2+1)
+	log.Printf("server %d listening on %s peers=%s majority=%d", *id, addr, strings.Join(peers, ","), len(peers)/2+1)
 	log.Fatal(http.Serve(ln, nil))
 }
 

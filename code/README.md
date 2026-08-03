@@ -36,15 +36,15 @@ Run these in three terminals from this `code` directory:
 
 ```sh
 rm -rf data
-go run ./paxos-server.go -id 0 -addr 127.0.0.1:8001 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
+go run ./paxos-server -id 0 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
 ```
 
 ```sh
-go run ./paxos-server.go -id 1 -addr 127.0.0.1:8002 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
+go run ./paxos-server -id 1 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
 ```
 
 ```sh
-go run ./paxos-server.go -id 2 -addr 127.0.0.1:8003 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
+go run ./paxos-server -id 2 -peers 127.0.0.1:8001,127.0.0.1:8002,127.0.0.1:8003 -data data
 ```
 
 ## Client Commands

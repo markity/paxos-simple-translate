@@ -155,7 +155,7 @@ func (s *Server) propose(preferred int) (int, error) {
 		acceptOK := 0
 		for _, peer := range s.peers {
 			var reply comm.AcceptReply
-			if err := call(peer, "Paxos.Accept", comm.AcceptArgs{N: n, Value: value}, &reply); err != nil {
+			if err := s.sendAccept(peer, comm.AcceptArgs{N: n, Value: value}, &reply); err != nil {
 				continue
 			}
 			if reply.PromisedN.Greater(maxPromised) {
@@ -200,7 +200,7 @@ func (s *Server) readChosen() (int, bool, error) {
 		acceptOK := 0
 		for _, peer := range s.peers {
 			var reply comm.AcceptReply
-			if err := call(peer, "Paxos.Accept", comm.AcceptArgs{N: n, Value: highestAcceptedValue}, &reply); err != nil {
+			if err := s.sendAccept(peer, comm.AcceptArgs{N: n, Value: highestAcceptedValue}, &reply); err != nil {
 				continue
 			}
 			if reply.PromisedN.Greater(maxPromised) {
@@ -234,7 +234,7 @@ func (s *Server) runPrepare() (comm.ProposalNumber, int, comm.ProposalNumber, co
 
 	for _, peer := range s.peers {
 		var reply comm.PrepareReply
-		if err := call(peer, "Paxos.Prepare", comm.PrepareArgs{N: n}, &reply); err != nil {
+		if err := s.sendPrepare(peer, comm.PrepareArgs{N: n}, &reply); err != nil {
 			continue
 		}
 		if reply.PromisedN.Greater(maxPromised) {
@@ -251,6 +251,20 @@ func (s *Server) runPrepare() (comm.ProposalNumber, int, comm.ProposalNumber, co
 	}
 
 	return n, prepareOK, maxPromised, highestAcceptedN, highestAcceptedValue, nil
+}
+
+func (s *Server) sendPrepare(peer string, args comm.PrepareArgs, reply *comm.PrepareReply) error {
+	if peer == s.addr {
+		return s.Prepare(args, reply)
+	}
+	return call(peer, "Paxos.Prepare", args, reply)
+}
+
+func (s *Server) sendAccept(peer string, args comm.AcceptArgs, reply *comm.AcceptReply) error {
+	if peer == s.addr {
+		return s.Accept(args, reply)
+	}
+	return call(peer, "Paxos.Accept", args, reply)
 }
 
 func (s *Server) proposalNumber() (comm.ProposalNumber, error) {

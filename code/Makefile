@@ -27,9 +27,9 @@ start: build
 		echo "servers may already be running; use 'make stop' first"; \
 		exit 1; \
 	fi
-	@nohup $(BIN_DIR)/paxos-server -id 0 -addr 127.0.0.1:8001 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-0.log 2>&1 & echo $$! >$(PID_DIR)/server-0.pid
-	@nohup $(BIN_DIR)/paxos-server -id 1 -addr 127.0.0.1:8002 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-1.log 2>&1 & echo $$! >$(PID_DIR)/server-1.pid
-	@nohup $(BIN_DIR)/paxos-server -id 2 -addr 127.0.0.1:8003 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-2.log 2>&1 & echo $$! >$(PID_DIR)/server-2.pid
+	@nohup $(BIN_DIR)/paxos-server -id 0 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-0.log 2>&1 & echo $$! >$(PID_DIR)/server-0.pid
+	@nohup $(BIN_DIR)/paxos-server -id 1 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-1.log 2>&1 & echo $$! >$(PID_DIR)/server-1.pid
+	@nohup $(BIN_DIR)/paxos-server -id 2 -peers $(PEERS) -data $(DATA_DIR) >$(LOG_DIR)/server-2.log 2>&1 & echo $$! >$(PID_DIR)/server-2.pid
 	@echo "started servers on 127.0.0.1:8001, 127.0.0.1:8002, 127.0.0.1:8003"
 	@echo "logs: $(LOG_DIR)/server-{0,1,2}.log"
 
