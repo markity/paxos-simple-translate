@@ -346,16 +346,16 @@ message AcceptResponse {
 }
 \end{quote}
 
-(b)如果Acceptor收到针对编号为\(n\)的Proposal的accept请求，除非它已经
-响应\emph{(译者注：论文中的响应其实指的是接受)}过编号大于\(n\)
-的Prepare请求，否则它接受该Proposal\emph{
-(译者注：接受该Proposal时ok==true，并且返回的Max Promised Number必然等于
-该Proposal number，因为接受者也会像Prepare一样更新自己
-的Max Promised Number。
-倘若拒绝，那么这个Max Promised Number也可以帮忙Proposer跳跃编号。如果
-收集到了多数派的ok==true，那么这个value就一定被选定了，至于这个
-值是什么，取决于Prepare Response里的信息，看到底是继承了还是自己提出的，
-客户端调用Set后，应该告知最后选定的值是哪个，而不能只说“我选了”)}。
+(b) Acceptor收到编号为\(n\)的accept请求时，检查自己承诺过的最大编号：
+如果这个编号不大于\(n\)\emph{(译者注：Prepare的接受条件是n>节点记录的
+承诺值，而Accept的接受条件是n>=节点记录的承诺值，这两个条件有微小差异，一个
+有等号，一个没有，读者请注意！)}，就接受该Proposal；否则拒绝。
+\emph{(译者注：也就是当\(n \geq MaxPromisedNumber\)时返回
+ok==true，并将MaxPromisedNumber更新为\(n\)；否则返回ok==false和当前
+的MaxPromisedNumber，Proposer可以据此换用更大的编号重试。一个value被
+多数Acceptor接受后，就被选定了。这个value可能是Proposer自己提出的，也
+可能是它在Prepare阶段继承的旧值。因此，客户端调用Set后，服务端应返回
+最终选定的值。)}
 
 只要对每个Proposal都遵循这个算法，一个Proposer可以发出多个Proposal。
 它也可以在协议中途的任何时刻放弃某个Proposal(即使该Proposal的请求

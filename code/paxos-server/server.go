@@ -61,6 +61,7 @@ func (s *Server) Prepare(args comm.PrepareArgs, reply *comm.PrepareReply) error 
 		}
 		reply.OK = true
 	} else {
+		// not allow <=
 		reply.OK = false
 	}
 
@@ -88,6 +89,7 @@ func (s *Server) Accept(args comm.AcceptArgs, reply *comm.AcceptReply) error {
 		return nil
 	}
 
+	// not allow <
 	reply.OK = false
 	reply.PromisedN = s.state.PromisedN
 	return nil
