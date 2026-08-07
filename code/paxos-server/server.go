@@ -56,6 +56,7 @@ func (s *Server) Prepare(args comm.PrepareArgs, reply *comm.PrepareReply) error 
 
 	if args.N.Greater(s.state.PromisedN) {
 		s.state.PromisedN = args.N
+		s.bumpProposalNumberLocked(args.N)
 		if err := s.saveLocked(); err != nil {
 			return err
 		}
@@ -81,6 +82,7 @@ func (s *Server) Accept(args comm.AcceptArgs, reply *comm.AcceptReply) error {
 		s.state.AcceptedN = args.N
 		s.state.AcceptedValue = args.Value
 		s.state.HasAccepted = true
+		s.bumpProposalNumberLocked(args.N)
 		if err := s.saveLocked(); err != nil {
 			return err
 		}
@@ -141,10 +143,10 @@ func (s *Server) propose(preferred int) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		if err := s.bumpProposalNumber(maxPromised); err != nil {
+			return 0, err
+		}
 		if prepareOK < majority {
-			if err := s.bumpProposalNumber(maxPromised); err != nil {
-				return 0, err
-			}
 			time.Sleep(20 * time.Millisecond)
 			continue
 		}
@@ -167,15 +169,15 @@ func (s *Server) propose(preferred int) (int, error) {
 				acceptOK++
 			}
 		}
+		if err := s.bumpProposalNumber(maxPromised); err != nil {
+			return 0, err
+		}
 
 		if acceptOK >= majority {
 			log.Printf("server %d chose value=%d n=%s", s.id, value, n)
 			return value, nil
 		}
 
-		if err := s.bumpProposalNumber(maxPromised); err != nil {
-			return 0, err
-		}
 		time.Sleep(20 * time.Millisecond)
 	}
 }
@@ -188,10 +190,10 @@ func (s *Server) readChosen() (int, bool, error) {
 		if err != nil {
 			return 0, false, err
 		}
+		if err := s.bumpProposalNumber(maxPromised); err != nil {
+			return 0, false, err
+		}
 		if prepareOK < majority {
-			if err := s.bumpProposalNumber(maxPromised); err != nil {
-				return 0, false, err
-			}
 			time.Sleep(20 * time.Millisecond)
 			continue
 		}
@@ -212,14 +214,14 @@ func (s *Server) readChosen() (int, bool, error) {
 				acceptOK++
 			}
 		}
+		if err := s.bumpProposalNumber(maxPromised); err != nil {
+			return 0, false, err
+		}
 
 		if acceptOK >= majority {
 			return highestAcceptedValue, true, nil
 		}
 
-		if err := s.bumpProposalNumber(maxPromised); err != nil {
-			return 0, false, err
-		}
 		time.Sleep(20 * time.Millisecond)
 	}
 }
@@ -290,11 +292,18 @@ func (s *Server) proposalNumber() (comm.ProposalNumber, error) {
 func (s *Server) bumpProposalNumber(min comm.ProposalNumber) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.state.NextRound < min.Round {
-		s.state.NextRound = min.Round
+	if s.bumpProposalNumberLocked(min) {
 		return s.saveLocked()
 	}
 	return nil
+}
+
+func (s *Server) bumpProposalNumberLocked(min comm.ProposalNumber) bool {
+	if s.state.NextRound >= min.Round {
+		return false
+	}
+	s.state.NextRound = min.Round
+	return true
 }
 
 func (s *Server) load() error {
@@ -305,37 +314,10 @@ func (s *Server) load() error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, &s.state); err == nil {
-		s.advanceRoundLocked()
-		return nil
-	}
-
-	var legacy struct {
-		PromisedN     int64 `json:"promised_n"`
-		AcceptedN     int64 `json:"accepted_n"`
-		AcceptedValue int   `json:"accepted_value"`
-		HasAccepted   bool  `json:"has_accepted"`
-	}
-	if err := json.Unmarshal(data, &legacy); err != nil {
+	if err := json.Unmarshal(data, &s.state); err != nil {
 		return fmt.Errorf("decode persistent state: %w", err)
 	}
-	s.state = persistentState{
-		PromisedN:     comm.ProposalNumber{Round: legacy.PromisedN},
-		AcceptedN:     comm.ProposalNumber{Round: legacy.AcceptedN},
-		AcceptedValue: legacy.AcceptedValue,
-		HasAccepted:   legacy.HasAccepted,
-	}
-	s.advanceRoundLocked()
-	return s.saveLocked()
-}
-
-func (s *Server) advanceRoundLocked() {
-	if s.state.NextRound < s.state.PromisedN.Round {
-		s.state.NextRound = s.state.PromisedN.Round
-	}
-	if s.state.NextRound < s.state.AcceptedN.Round {
-		s.state.NextRound = s.state.AcceptedN.Round
-	}
+	return nil
 }
 
 func (s *Server) saveLocked() error {

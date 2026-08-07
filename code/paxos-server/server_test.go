@@ -78,6 +78,33 @@ func TestProposalRoundJumpsPastObservedNumber(t *testing.T) {
 	}
 }
 
+func TestProposalRoundUsesPromiseObservedAsAcceptor(t *testing.T) {
+	server, err := NewServer(0, "server-0", []string{"server-0"}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	observed := comm.ProposalNumber{Round: 100, MachineID: 2}
+	var reply comm.PrepareReply
+	if err := server.Prepare(comm.PrepareArgs{N: observed}, &reply); err != nil {
+		t.Fatal(err)
+	}
+	if !reply.OK {
+		t.Fatalf("prepare %s was rejected", observed)
+	}
+	if server.state.NextRound != observed.Round {
+		t.Fatalf("next round after promising %s = %d", observed, server.state.NextRound)
+	}
+
+	n, err := server.proposalNumber()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != (comm.ProposalNumber{Round: 101, MachineID: 0}) {
+		t.Fatalf("number after promising round 100 = %s", n)
+	}
+}
+
 func TestMessagesToSelfUseLocalCalls(t *testing.T) {
 	const self = "not-a-listening-address"
 	server, err := NewServer(0, self, []string{self}, t.TempDir())
@@ -106,7 +133,7 @@ func TestMessagesToSelfUseLocalCalls(t *testing.T) {
 	}
 }
 
-func TestLegacyIntegerStateIsMigrated(t *testing.T) {
+func TestLegacyIntegerStateIsRejected(t *testing.T) {
 	dataDir := t.TempDir()
 	dataFile := filepath.Join(dataDir, "server-0.json")
 	legacy := []byte(`{
@@ -119,25 +146,7 @@ func TestLegacyIntegerStateIsMigrated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server, err := NewServer(0, "server-0", []string{"server-0"}, dataDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if server.state.PromisedN != (comm.ProposalNumber{Round: 9}) {
-		t.Fatalf("migrated promised number = %s", server.state.PromisedN)
-	}
-	if server.state.AcceptedN != (comm.ProposalNumber{Round: 7}) {
-		t.Fatalf("migrated accepted number = %s", server.state.AcceptedN)
-	}
-	if !server.state.HasAccepted || server.state.AcceptedValue != 42 {
-		t.Fatalf("accepted state was not preserved: %+v", server.state)
-	}
-
-	n, err := server.proposalNumber()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != (comm.ProposalNumber{Round: 10, MachineID: 0}) {
-		t.Fatalf("number after migration = %s", n)
+	if _, err := NewServer(0, "server-0", []string{"server-0"}, dataDir); err == nil {
+		t.Fatal("expected legacy state to be rejected")
 	}
 }
